@@ -1,0 +1,4 @@
+# D-judge .gitignore file
+D-judge
+judge_root/
+cache_root/
