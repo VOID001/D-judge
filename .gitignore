@@ -2,3 +2,4 @@
 D-judge
 judge_root/
 cache_root/
+config.toml

@@ -1,0 +1,17 @@
+# D-judge configuration Example
+# Rename the file to config.toml
+
+host_name = "judge-01" # The name of the judge
+
+docker_image = "void001/neuoj-judge-image:latest" # Docker Image to use for judge
+
+cache_root = "cache_root" # Cache Root
+max_cache_size = 4096000  # Maximized Cache size (in KBytes)
+
+judge_root = "judge_root" # Judge Root, testcase save & run here
+
+# OJ connection settings
+endpoint_name = "neuoj-test"
+endpoint_url = "http://127.0.0.1:8080/api"
+endpoint_user = "neuoj"
+endpoint_password = "1a2c3@fg"
