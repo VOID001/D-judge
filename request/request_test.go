@@ -13,7 +13,7 @@ import (
 )
 
 var GlobalConfig = config.SystemConfig{
-	HostName:         "dev-test",
+	HostName:         "judge-01",
 	EndpointName:     "neuoj",
 	EndpointUser:     "neuoj",
 	EndpointURL:      "http://localhost:8080/api",

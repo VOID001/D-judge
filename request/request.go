@@ -75,8 +75,10 @@ func Do(ctx context.Context, method string, URL string, data interface{}, ctype 
 
 	if err == io.EOF {
 		err = nil
+		respdata = nil
 		return
 	}
+
 	if err != nil {
 		err = errors.Wrap(err, "json decode error")
 		return
