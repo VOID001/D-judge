@@ -94,7 +94,41 @@ func TestDownExecutableWithCache(t *testing.T) {
 		return
 	}
 
-	if _, err := os.Stat("/tmp/cache_root/testdata"); err != nil && os.IsNotExist(err) {
+	if _, err := os.Stat(d.Destination); err != nil && os.IsNotExist(err) {
+		t.Logf("download failed but downloader do not return error")
+		t.Fail()
+		return
+	}
+	if _, err := os.Stat(filepath.Join(config.GlobalConfig.CacheRoot, d.FileName)); err != nil && os.IsNotExist(err) {
+		t.Logf("download failed but downloader do not return error")
+		t.Fail()
+		return
+	}
+	return
+}
+
+func TestDownTestcaseWithCache(t *testing.T) {
+	d := Downloader{}
+	d.Destination = "/tmp/test.in"
+	d.FileName = "test.in"
+	d.SkipMD5Check = false
+	d.UseCache = true
+	d.FileType = "testcase"
+	d.Params = []string{"2", "input"}
+	d.MD5 = "f303b7d2f2b87f9e16df05e2bca7c409"
+	err := d.Do(context.Background())
+	if err != nil {
+		t.Logf("downloader do error: %+v", err)
+		t.Fail()
+		return
+	}
+
+	if _, err := os.Stat(d.Destination); err != nil && os.IsNotExist(err) {
+		t.Logf("download failed but downloader do not return error")
+		t.Fail()
+		return
+	}
+	if _, err := os.Stat(filepath.Join(config.GlobalConfig.CacheRoot, d.FileName)); err != nil && os.IsNotExist(err) {
 		t.Logf("download failed but downloader do not return error")
 		t.Fail()
 		return

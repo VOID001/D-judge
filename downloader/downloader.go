@@ -17,7 +17,7 @@ import (
 )
 
 var apiMap = map[string]string{
-	"testcase":   "/testcase_files?testcaseid=%s&%s",
+	"testcase":   "/testcase_files?testcaseid=%s&%%s", // Seems strange but works!
 	"executable": "/executable?execid=%s",
 	"code":       "/submission_files?id=%s",
 }
@@ -54,10 +54,11 @@ func cleanupcache() (err error) {
 }
 
 func (d *Downloader) Do(ctx context.Context) (err error) {
-	var url string
 	var content string
+	url := apiMap[d.FileType]
 	for i := 0; i < len(d.Params); i++ {
-		url = fmt.Sprintf(apiMap[d.FileType], d.Params[i])
+		url = fmt.Sprintf(url, d.Params[i])
+		log.Debugf("url = %s", url)
 	}
 
 	hit := d.UseCache
