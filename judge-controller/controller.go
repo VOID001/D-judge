@@ -59,7 +59,7 @@ func (d *Daemon) Run(ctx context.Context, w *Worker) (err error) {
 	d.CurrentWorker++
 	mu.Unlock()
 
-	w.prepare()
+	w.prepare(ctx)
 
 	w.build()
 
