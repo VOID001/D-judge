@@ -28,9 +28,9 @@ type JudgeInfo struct {
 	BuildZip      string `json:"compile_script"`
 	BuildZipMD5   string `json:"compile_script_md5sum"`
 	RunZip        string `json:"run"`
-	RunScriptMD5  string `json:"run_md5sum"`
+	RunZipMD5     string `json:"run_md5sum"`
 	CompareZip    string `json:"compare"`
-	CompareZipMD5 string `json:"compare_script_md5sum"`
+	CompareZipMD5 string `json:"compare_md5sum"`
 	CompareArgs   string `json:"compare_args"`
 }
 
