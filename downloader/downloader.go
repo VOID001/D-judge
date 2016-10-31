@@ -81,6 +81,7 @@ func (d *Downloader) Do(ctx context.Context) (err error) {
 
 	switch d.FileType {
 	case "code":
+		// Provide the code name
 		m := []map[string]string{}
 		err = request.Do(ctx, http.MethodGet, url, nil, "", &m)
 		if err != nil {
@@ -88,6 +89,8 @@ func (d *Downloader) Do(ctx context.Context) (err error) {
 			return
 		}
 		content = m[0]["content"]
+		d.Destination = filepath.Join(filepath.Dir(d.Destination), m[0]["filename"])
+		d.FileName = m[0]["filename"]
 		break
 	default:
 		err = request.Do(ctx, http.MethodGet, url, nil, "", &content)
@@ -154,7 +157,7 @@ func lookupcache(name string, md5sum string) (path string, err error) {
 	if !info.IsDir() {
 		err = errors.New("error lookup cache: path is not a dir")
 	}
-	look = filepath.Join(look, "checksum")
+	look = filepath.Join(look, "content")
 	file, er := os.Open(look)
 	if er != nil {
 		err = errors.Wrap(er, "error lookup cache")
@@ -162,14 +165,15 @@ func lookupcache(name string, md5sum string) (path string, err error) {
 	}
 	defer file.Close()
 
-	oldmd5, er := ioutil.ReadFile(look)
+	oldfile, er := ioutil.ReadFile(look)
 
 	if er != nil {
 		err = errors.Wrap(er, "error lookup cache")
 		return
 	}
+	oldmd5 := md5.Sum(oldfile)
 
-	if fmt.Sprintf("%s", oldmd5) != md5sum {
+	if fmt.Sprintf("%x", oldmd5) != md5sum {
 		err = errors.New("error lookup cache, md5sum do not match")
 		return
 	}
