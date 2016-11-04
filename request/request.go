@@ -22,7 +22,7 @@ const (
 func Do(ctx context.Context, method string, URL string, data interface{}, ctype string, respdata interface{}) (err error) {
 	var req *http.Request
 	URL = config.GlobalConfig.EndpointURL + URL
-	log.Infof("stared request method=%s URL=%s", method, URL)
+	log.Debugf("stared request method=%s URL=%s", method, URL)
 	cli := &http.Client{}
 	buf := bytes.Buffer{}
 	enc := json.NewEncoder(&buf)
@@ -85,6 +85,6 @@ func Do(ctx context.Context, method string, URL string, data interface{}, ctype 
 	}
 	log.Debugf("Decoded data %+v", respdata)
 
-	log.Infof("done request method=%s URL=%s", method, URL)
+	log.Debugf("done request method=%s URL=%s", method, URL)
 	return
 }

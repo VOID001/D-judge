@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"runtime"
 	"time"
 
 	"io/ioutil"
@@ -42,11 +43,12 @@ var debuglv int64
 var GlobalConfig config.SystemConfig
 
 func init() {
+	var logfile string
 	flag.StringVar(&path, "c", "config.toml", "select configuration file")
 	flag.Int64Var(&debuglv, "d", 0, "debug mode enabled")
+	flag.StringVar(&logfile, "log", "/dev/stdout", "log file")
 	flag.Parse()
-	_, err := toml.DecodeFile(path, &config.GlobalConfig)
-	GlobalConfig = config.GlobalConfig
+	_, err := toml.DecodeFile(path, &GlobalConfig)
 	if err != nil {
 		err = errors.Wrap(err, "Processing config file error")
 		log.Fatal(err)
@@ -55,10 +57,10 @@ func init() {
 	if err != nil {
 		err = errors.Wrap(err, "Get current directory error")
 	}
-	if GlobalConfig.JudgeRoot[0] != '/' {
+	if !filepath.IsAbs(GlobalConfig.JudgeRoot) {
 		GlobalConfig.JudgeRoot = filepath.Join(cwd, GlobalConfig.JudgeRoot)
 	}
-	if GlobalConfig.CacheRoot[0] != '/' {
+	if !filepath.IsAbs(GlobalConfig.CacheRoot) {
 		GlobalConfig.CacheRoot = filepath.Join(cwd, GlobalConfig.CacheRoot)
 	}
 	if debuglv == INFO {
@@ -70,6 +72,9 @@ func init() {
 	if debuglv == DEBUG {
 		log.SetLevel(log.DebugLevel)
 	}
+	f, _ := os.Create(logfile)
+	log.SetOutput(f)
+	config.GlobalConfig = GlobalConfig
 }
 
 func main() {
@@ -97,6 +102,7 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Error When Requesting Judgehost
 	err = request.Do(context.Background(), http.MethodPost, "/judgehosts", url.Values{"hostname": {config.GlobalConfig.HostName}}, request.TypeForm, nil)
 	if err != nil {
 		err = errors.Wrap(err, "main loop error")
@@ -105,18 +111,19 @@ func main() {
 	log.Infof("sanity check success")
 
 	// PerformRequest Lifcycle
+	daemon := controller.Daemon{}
+	daemon.MaxWorker = runtime.NumCPU()
+	go daemon.Run(context.Background())
 	for {
 		jinfo := config.JudgeInfo{}
-		// Error When Requesting Judgehost
-		if err != nil {
-			log.Warn(err)
-		}
 		// Request For Judge
 		err = request.Do(context.Background(), http.MethodPost, fmt.Sprintf("/judgings?judgehost=%s", config.GlobalConfig.HostName), nil, "", &jinfo)
 		if err != nil {
 			log.Warn(err)
 		}
+		log.Debugf("Judge Info %+v", jinfo)
 		if jinfo.SubmitID != 0 {
+			log.Infof("Fetched Submission ID #%d", jinfo.SubmitID)
 			workDir := fmt.Sprintf("%s/c%d-s%d-j%d", config.GlobalConfig.JudgeRoot, jinfo.ContestID, jinfo.SubmitID, jinfo.JudgingID)
 			if _, err := os.Stat(workDir); err == nil {
 				oldWorkDir := fmt.Sprintf("%s-old-%d", workDir, time.Now().Unix())
@@ -127,16 +134,11 @@ func main() {
 				}
 			}
 			os.Mkdir(workDir, DirPerm)
+			daemon.AddTask(context.Background(), jinfo, workDir, config.GlobalConfig.DockerImage)
 		}
+		//time.Sleep(time.Duration(rand.Intn(2500)) * time.Millisecond)
+		time.Sleep(time.Duration(1000) * time.Millisecond)
 	}
-
-	// Start Compile
-
-	// Start Run
-
-	// Start Compare
-
-	// NextTestcase
 }
 
 func sanityCheckDir(dir string) (err error) {
