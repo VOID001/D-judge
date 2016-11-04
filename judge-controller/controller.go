@@ -5,10 +5,12 @@ import (
 
 	"github.com/VOID001/D-judge/config"
 	//"github.com/VOID001/D-judge/request"
-	"github.com/docker/engine-api/client"
-	"github.com/pkg/errors"
 	"runtime"
 	"sync"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/docker/engine-api/client"
+	"github.com/pkg/errors"
 	//"github.com/docker/engine-api/types"
 	//"github.com/docker/engine-api/types/container"
 	"net/http"
@@ -26,6 +28,14 @@ type Daemon struct {
 	MaxWorker     int
 	CurrentWorker int
 	WorkerState   []string
+	workerChan    chan Worker
+	resultChan    chan RunResult
+}
+
+type RunResult struct {
+	Stage string
+	RunID int
+	err   error
 }
 
 var httpcli http.Client
@@ -50,28 +60,54 @@ func Ping(ctx context.Context) (err error) {
 	return
 }
 
-func (d *Daemon) Run(ctx context.Context, w *Worker) (err error) {
-	if d.CurrentWorker >= d.MaxWorker {
-		err = errors.New(ErrMaxWorkerExceed)
-		return
-	}
-	mu.Lock()
-	d.CurrentWorker++
-	mu.Unlock()
-
-	w.prepare(ctx)
-
-	w.build()
-
-	w.run()
-
-	w.judge()
-
-	mu.Lock()
-	d.CurrentWorker--
-	mu.Unlock()
+func (d *Daemon) AddTask(ctx context.Context, jinfo config.JudgeInfo, dir string, img string) (err error) {
+	log.Debugf("call AddTask(context, jinfo = %+v, dir = %+v, img = %+v)", jinfo, dir, img)
+	w := Worker{}
+	w.JudgeInfo = jinfo
+	w.WorkDir = dir
+	w.RunUser = "root"
+	w.DockerImage = img
+	d.workerChan <- w
 	return
 }
+
+func (d *Daemon) Run(ctx context.Context) {
+	d.workerChan = make(chan Worker, 100)
+	for i := 0; i < d.MaxWorker; i++ {
+		go d.run(ctx, i)
+	}
+	return
+}
+
+func (d *Daemon) run(ctx context.Context, cpuid int) {
+	for {
+		if w, ok := <-d.workerChan; ok {
+			log.Infof("Started Judging RunID #%d, running on CPU %d", w.JudgeInfo.SubmitID, cpuid)
+			w.CPUID = cpuid
+			err := w.prepare(ctx)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			err = w.build(ctx)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			w.run(ctx)
+			w.judge(ctx)
+			err = w.cleanup(ctx)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+		} else {
+			break
+		}
+	}
+	return
+}
+
 func GetAvailableCPU(ctx context.Context) (cpuid int, err error) {
 	for i := 0; i < cpuCount; i++ {
 		if cpuMap[i] != true {
@@ -82,5 +118,6 @@ func GetAvailableCPU(ctx context.Context) (cpuid int, err error) {
 			return
 		}
 	}
+	cpuid = -1
 	return
 }
