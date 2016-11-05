@@ -4,6 +4,7 @@ MAINTAINER VOID001<zhangjianqiu13@gmail.com>
 
 RUN apt-get update
 RUN yes | apt-get install python python3 openjdk-7-jre openjdk-7-jdk php5 ruby mysql-server gcc
+RUN apt-get install unzip
 RUN echo > judgehost-info.txt << EOF Judgehost Image Status \
 Python2 Version: $(python2.7 --version) \
 Python3 Version: $(python3 --version) \
