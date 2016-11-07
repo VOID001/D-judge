@@ -40,7 +40,7 @@ type TestcaseInfo struct {
 	Rank         int64  `json:"rank"`
 	ProblemID    int64  `json:"probid"`
 	MD5SumInput  string `json:"md5sum_input"`
-	MD5SumOutput string `json:"md5sum_input"`
+	MD5SumOutput string `json:"md5sum_output"`
 }
 
 type SubmissionInfo struct {
