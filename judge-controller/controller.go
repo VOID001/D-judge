@@ -86,16 +86,18 @@ func (d *Daemon) run(ctx context.Context, cpuid int) {
 			w.CPUID = cpuid
 			err := w.prepare(ctx)
 			if err != nil {
+				w.cleanup(ctx)
 				log.Error(err)
 				return
 			}
 			err = w.build(ctx)
 			if err != nil {
+				w.cleanup(ctx)
 				log.Error(err)
 				return
 			}
-			w.run(ctx)
-			w.judge(ctx)
+			err = w.run(ctx)
+			err = w.judge(ctx)
 			err = w.cleanup(ctx)
 			if err != nil {
 				log.Error(err)

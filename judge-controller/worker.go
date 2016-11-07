@@ -5,11 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/pkg/errors"
-
-	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/VOID001/D-judge/config"
@@ -17,12 +14,11 @@ import (
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
-	"github.com/shirou/gopsutil/process"
 )
 
 type runinfo struct {
 	usedmem      uint64
-	usedtime     uint64
+	usedtime     int64
 	outputexceed bool
 	timeexceed   bool
 	memexceed    bool
@@ -167,7 +163,6 @@ func (w *Worker) build(ctx context.Context) (err error) {
 		err = errors.Wrap(err, "build error")
 		return
 	}
-
 	cmd := fmt.Sprintf("bash -c unzip -o build/%s -d build", w.JudgeInfo.BuildZip)
 	log.Infof("container %s executing %s", w.containerID, cmd)
 	info, err := w.execcmd(ctx, cli, "root", cmd)
@@ -206,101 +201,14 @@ func (w *Worker) build(ctx context.Context) (err error) {
 	return
 }
 
-func (w *Worker) runProtect(ctx context.Context, insp *types.ContainerJSON, pid int, timelim uint64, outputlim int64, outputfile string) (info runinfo, err error) {
-	// Use run protect to protect the running instance
-	// It will start right after the execmd =w=
-	info.outputexceed = false
-	info.usedmem = 0
-	info.usedtime = 0
-	info.timeexceed = false
-	p, err := process.NewProcess(int32(pid))
-	if err != nil {
-		err = errors.Wrap(err, "run protect error: cannot attach process")
-		return
-	}
-	m, err := p.MemoryInfoEx()
-	if err != nil {
-		err = errors.Wrap(err, "run protect error: cannot get memory info")
-	}
-	var f os.FileInfo
-	if outputfile != "" {
-		f, err = os.Stat(outputfile)
-		if err != nil && !os.IsNotExist(err) {
-			err = errors.Wrap(err, "run protect error: cannot get output file")
-			return
-		}
-	}
-
-	for {
-		_, er := os.Stat(filepath.Join(w.WorkDir, "done.lck"))
-		if er == nil {
-			err = os.Remove(filepath.Join(w.WorkDir, "done.lck")) // Suppose it will never fail
-			info.memexceed = insp.State.OOMKilled
-			return
-		}
-		datmem := m.Dirty // This should be Data Field, but Now Data Field value is wrong
-		if datmem > info.usedmem {
-			info.usedmem = datmem
-		}
-		if outputfile != "" {
-			sz := f.Size()
-			if sz > outputlim {
-				info.outputexceed = true
-				return
-			}
-		}
-		info.usedtime++
-		if info.usedtime > timelim*1000 {
-			info.timeexceed = true
-			p.Kill()
-			return
-		}
-		time.Sleep(time.Millisecond)
-	}
-	return
-}
-
-func (w *Worker) execcmd(ctx context.Context, cli *client.Client, user string, cmd string) (info types.ContainerExecInspect, err error) {
-	ec := types.ExecConfig{}
-	ec.Detach = true
-	ec.Cmd = strings.Split(cmd, " ")
-	excmd := strings.Join(ec.Cmd[2:], " ")
-	ec.Cmd[2] = excmd
-	ec.User = user
-	eresp, er := cli.ContainerExecCreate(ctx, w.containerID, ec)
-	if er != nil {
-		err = errors.Wrap(er, "exec command in container error")
-		return
-	}
-	sc := types.ExecStartCheck{}
-	log.Infof("exec ID = %s", eresp.ID)
-	err = cli.ContainerExecStart(ctx, eresp.ID, sc)
-	if err != nil {
-		err = errors.Wrap(err, "exec command in container error")
-		return
-	}
-	//insp, err := cli.ContainerExecAttach(ctx, eresp.ID, ec)
-	//if err != nil {
-	//	err = errors.Wrap(err, "exec command in container error")
-	//}
-	//defer insp.Close()
-	log.Infof("Executing exec ID = %s", eresp.ID)
-	info, err = cli.ContainerExecInspect(ctx, eresp.ID)
-	if err != nil {
-		err = errors.Wrap(err, "exec command in container error")
-	}
-	//buf := bytes.Buffer{}
-	//buf.ReadFrom(insp.Reader)
-	return
-}
-
-func (w *Worker) run(ctx context.Context) {
+func (w *Worker) run(ctx context.Context) (err error) {
 	// Build the run script
-
+	return
 }
 
-func (w *Worker) judge(ctx context.Context) {
+func (w *Worker) judge(ctx context.Context) (err error) {
 	// Build the judge script
+	return
 }
 
 func (w *Worker) cleanup(ctx context.Context) (err error) {
