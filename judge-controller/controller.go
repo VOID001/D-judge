@@ -2,11 +2,15 @@ package controller
 
 import (
 	"context"
+	"fmt"
+	"path/filepath"
 
-	"github.com/VOID001/D-judge/config"
-	//"github.com/VOID001/D-judge/request"
 	"runtime"
 	"sync"
+
+	"github.com/VOID001/D-judge/config"
+	"github.com/VOID001/D-judge/downloader"
+	"github.com/VOID001/D-judge/request"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/engine-api/client"
@@ -96,8 +100,66 @@ func (d *Daemon) run(ctx context.Context, cpuid int) {
 				log.Error(err)
 				return
 			}
-			err = w.run(ctx)
-			err = w.judge(ctx)
+			log.Debugf("Build done, start to fetch testcase")
+			for {
+				// Request for testcase
+				tinfo := config.TestcaseInfo{}
+
+				err = request.Do(ctx, http.MethodGet, fmt.Sprintf("/testcases?judgingid=%d", w.JudgeInfo.SubmitID), nil, "", &tinfo)
+				if err != nil {
+					// Return Judge Error
+				}
+				if tinfo.TestcaseID == 0 {
+					break
+				}
+				log.Debugf("Testcase info %+v", tinfo)
+
+				dl := downloader.Downloader{}
+				dl.FileType = "testcase"
+				dl.Destination = filepath.Join(w.WorkDir, fmt.Sprintf("testcase%03d.in", tinfo.Rank))
+				dl.FileName = fmt.Sprintf("%d-%s.in", tinfo.TestcaseID, tinfo.MD5SumInput)
+				dl.SkipMD5Check = false
+				dl.MD5 = tinfo.MD5SumInput
+				dl.UseCache = true
+				dl.Params = []string{fmt.Sprintf("%d", tinfo.TestcaseID), "input"}
+				err = dl.Do(ctx)
+				if err != nil {
+					err = errors.Wrap(err, "worker error: downloading testcase error")
+					log.Error(err)
+					// Return Judge Error
+				}
+
+				dl.Destination = filepath.Join(w.WorkDir, fmt.Sprintf("testcase%03d.out", tinfo.Rank))
+				dl.FileName = fmt.Sprintf("%d-%s.out", tinfo.TestcaseID, tinfo.MD5SumInput)
+				dl.MD5 = tinfo.MD5SumOutput
+				dl.Params = []string{fmt.Sprintf("%d", tinfo.TestcaseID), "output"}
+				err = dl.Do(ctx)
+				if err != nil {
+					err = errors.Wrap(err, "worker error: downloading testcase error")
+					log.Error(err)
+					// Return Judge Error
+					return
+				}
+
+				err = w.run(ctx, tinfo.Rank)
+				if err != nil {
+					w.cleanup(ctx)
+					err = errors.Wrap(err, "worker error")
+					log.Error(err)
+					// Return Judge Error
+					return
+				}
+
+				err = w.judge(ctx, tinfo.Rank)
+				if err != nil {
+					w.cleanup(ctx)
+					err = errors.Wrap(err, "worker error")
+					log.Error(err)
+					// Return Judge Error
+					return
+				}
+
+			}
 			err = w.cleanup(ctx)
 			if err != nil {
 				log.Error(err)

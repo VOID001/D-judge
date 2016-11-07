@@ -37,7 +37,6 @@ func (w *Worker) runProtect(ctx context.Context, insp *types.ContainerJSON, pid 
 	}
 	var f os.FileInfo
 	if outputfile != "" {
-		log.Infof("OutputLimit Should Check")
 		f, err = os.Stat(outputfile)
 		if err != nil && !os.IsNotExist(err) {
 			err = errors.Wrap(err, "run protect error: cannot get output file")
@@ -57,20 +56,27 @@ Loop:
 		case ev := <-wt.Event:
 			if ev.IsCreate() && strings.HasSuffix(ev.Name, "done.lck") {
 				curtime = time.Now().UnixNano()
+				err = os.Remove(ev.Name)
+				if err != nil {
+					err = errors.Wrap(err, "run protected error: cannot remove done.lck [ABORT!]")
+					return
+				}
 				break Loop
 			}
 		default:
 			curtime = time.Now().UnixNano()
-			//log.Infof("Time passed", curtime-starttime)
-			f, err = os.Stat(outputfile)
-			if err != nil && !os.IsNotExist(err) {
-				err = errors.Wrap(err, "run protect error: cannot stat outputfile")
-				break Loop
-			}
-			// Output Limit exceed
-			if err == nil && f.Size() > outputlim {
-				info.outputexceed = true
-				break Loop
+			// Only when output file is not empty, check the file size
+			if outputfile != "" {
+				f, err = os.Stat(outputfile)
+				if err != nil && !os.IsNotExist(err) {
+					err = errors.Wrap(err, "run protect error: cannot stat outputfile")
+					break Loop
+				}
+				// Output Limit exceed
+				if err == nil && f.Size() > outputlim {
+					info.outputexceed = true
+					break Loop
+				}
 			}
 			// Collect memory used
 			if info.usedmem < m.Dirty {
