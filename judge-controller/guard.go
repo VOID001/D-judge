@@ -5,13 +5,14 @@ package controller
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
-	"github.com/howeyc/fsnotify"
+	"github.com/fsnotify/fsnotify"
 	"github.com/pkg/errors"
 	"github.com/shirou/gopsutil/process"
 )
@@ -49,18 +50,20 @@ func (w *Worker) runProtect(ctx context.Context, insp *types.ContainerJSON, pid 
 		return
 	}
 	defer wt.Close()
-	go wt.Watch(w.WorkDir)
+	err = wt.Add(w.WorkDir)
+	if err != nil {
+		err = errors.Wrap(err, "run protect error: cannot add watchpoint")
+		return
+	}
+	log.Debugf("Add watch to %s", w.WorkDir)
 Loop:
 	for {
 		select {
-		case ev := <-wt.Event:
-			if ev.IsCreate() && strings.HasSuffix(ev.Name, "done.lck") {
+		case ev := <-wt.Events:
+			log.Debugf("%s", ev.String())
+			println(ev.String())
+			if ev.Op == fsnotify.Create && strings.HasSuffix(ev.Name, "done.lck") {
 				curtime = time.Now().UnixNano()
-				err = os.Remove(ev.Name)
-				if err != nil {
-					err = errors.Wrap(err, "run protected error: cannot remove done.lck [ABORT!]")
-					return
-				}
 				break Loop
 			}
 		default:
@@ -93,10 +96,25 @@ Loop:
 				}
 				break Loop
 			}
+			// done.lck create too quick, then just get it and exit
+			_, err = os.Stat(filepath.Join(w.WorkDir, "done.lck"))
+			if err == nil {
+				break Loop
+			}
+
 		}
 	}
 	info.usedtime = curtime - starttime
 	info.memexceed = insp.State.OOMKilled
+	println("NOW WILL REMOVE DONE.LCK")
+	time.Sleep(5 * time.Second)
+	err = os.RemoveAll(filepath.Join(w.WorkDir, "done.lck"))
+	if err != nil {
+		err = errors.Wrap(err, "cannot remove done.lck [ABORT!]")
+		return
+	}
+	println("DONE.LCK SHOULD BE REOMVED")
+	time.Sleep(5 * time.Second)
 
 	return
 }

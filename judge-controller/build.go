@@ -16,7 +16,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (w *Worker) build(ctx context.Context) (err error, ok bool) {
+func (w *Worker) build(ctx context.Context) (ok bool, err error) {
 	// Start the container and Build the target
 	cli, er := client.NewClient(config.GlobalConfig.DockerServer, "", nil, nil)
 	if er != nil {
@@ -117,13 +117,21 @@ func (w *Worker) build(ctx context.Context) (err error, ok bool) {
 		log.Debugf("Run#%d Compile Error", w.JudgeInfo.SubmitID)
 		log.Debugf("erorMsg %s", errMsg)
 		// This means compile error
-		request.CompileError(ctx, errors.New(errMsg), w.JudgeInfo.SubmitID)
+		err = request.CompileError(ctx, errors.New(errMsg), w.JudgeInfo.SubmitID)
+		if err != nil {
+			err = errors.Wrap(err, "build error")
+			return
+		}
 		// Set error to nil
 		err = nil
 		ok = false
 		return
 	}
-	request.CompileOK(ctx, w.JudgeInfo.SubmitID)
+	err = request.CompileOK(ctx, w.JudgeInfo.SubmitID)
+	if err != nil {
+		err = errors.Wrap(err, "build error")
+		return
+	}
 	ok = true
 	return
 }

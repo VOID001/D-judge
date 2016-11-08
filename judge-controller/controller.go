@@ -99,7 +99,7 @@ func (d *Daemon) run(ctx context.Context, cpuid int) {
 				return // Future will change to continue
 			}
 			log.Infof("RunID #%d prepare OK", w.JudgeInfo.SubmitID)
-			err, ok := w.build(ctx)
+			ok, err := w.build(ctx)
 			if err != nil {
 				w.cleanup(ctx)
 				log.Error(err)
@@ -147,33 +147,39 @@ func (d *Daemon) run(ctx context.Context, cpuid int) {
 				if err != nil {
 					err = errors.Wrap(err, "worker error: downloading testcase error")
 					log.Error(err)
-					// Return Judge Error
-					return
+					request.JudgeError(ctx, err, w.JudgeInfo.JudgingID)
+					break
 				}
 
-				err = w.run(ctx, tinfo.Rank)
+				// Run testcase
+				ok, err = w.run(ctx, tinfo.Rank, tinfo.TestcaseID)
 				if err != nil {
 					w.cleanup(ctx)
 					err = errors.Wrap(err, "worker error")
 					log.Error(err)
-					// Return Judge Error
-					return
+					request.JudgeError(ctx, err, w.JudgeInfo.JudgingID)
+					break
 				}
+				if !ok {
+					break
+				}
+				log.Infof("Run Testcase %d OK", tinfo.Rank)
 
-				err = w.judge(ctx, tinfo.Rank)
+				// Judge testcase
+				err = w.judge(ctx, tinfo.Rank, tinfo.TestcaseID)
 				if err != nil {
 					w.cleanup(ctx)
 					err = errors.Wrap(err, "worker error")
 					log.Error(err)
-					// Return Judge Error
-					return
+					request.JudgeError(ctx, err, w.JudgeInfo.JudgingID)
+					break
 				}
 
 			}
 			err = w.cleanup(ctx)
 			if err != nil {
 				log.Error(err)
-				return
+				break
 			}
 		} else {
 			break
