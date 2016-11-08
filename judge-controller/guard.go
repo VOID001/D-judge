@@ -106,33 +106,39 @@ Loop:
 	}
 	info.usedtime = curtime - starttime
 	info.memexceed = insp.State.OOMKilled
-	println("NOW WILL REMOVE DONE.LCK")
-	time.Sleep(5 * time.Second)
 	err = os.RemoveAll(filepath.Join(w.WorkDir, "done.lck"))
 	if err != nil {
 		err = errors.Wrap(err, "cannot remove done.lck [ABORT!]")
 		return
 	}
 	println("DONE.LCK SHOULD BE REOMVED")
-	time.Sleep(5 * time.Second)
 
 	return
 }
 
 func (w *Worker) execcmd(ctx context.Context, cli *client.Client, user string, cmd string) (info types.ContainerExecInspect, err error) {
 	ec := types.ExecConfig{}
-	ec.Detach = true
-	ec.Cmd = strings.Split(cmd, " ")
-	excmd := strings.Join(ec.Cmd[2:], " ")
-	ec.Cmd[2] = excmd
+	ec.Detach = false
+	ec.Tty = false
+	ec.Cmd = make([]string, 3)
+	ec.Cmd[0] = "/bin/bash"
+	ec.Cmd[1] = "-c"
+	ec.Cmd[2] = cmd
+	//ec.Cmd = strings.Split(cmd, " ")
+	//excmd := strings.Join(ec.Cmd[2:], " ")
+	//ec.Cmd[2] = excmd
 	ec.User = user
+	//log.Infof("ONLY FOR NOW DEBUG ec %v", ec.Cmd)
 	eresp, er := cli.ContainerExecCreate(ctx, w.containerID, ec)
 	if er != nil {
 		err = errors.Wrap(er, "exec command in container error")
 		return
 	}
 	sc := types.ExecStartCheck{}
-	log.Infof("exec ID = %s", eresp.ID)
+	log.Infof("ExecStartCheck %+v", sc)
+	sc.Tty = true
+	sc.Detach = false
+	//log.Infof("exec ID = %s", eresp.ID)
 	err = cli.ContainerExecStart(ctx, eresp.ID, sc)
 	if err != nil {
 		err = errors.Wrap(err, "exec command in container error")
@@ -143,8 +149,12 @@ func (w *Worker) execcmd(ctx context.Context, cli *client.Client, user string, c
 	//	err = errors.Wrap(err, "exec command in container error")
 	//}
 	//defer insp.Close()
-	log.Infof("Executing exec ID = %s", eresp.ID)
+	log.Debugf("Executing exec ID = %s", eresp.ID)
+	//time.Sleep(1 * time.Second)
 	info, err = cli.ContainerExecInspect(ctx, eresp.ID)
+	ins, er := cli.ContainerInspect(ctx, w.containerID)
+	log.Infof("ONLY FOR CURRENT DEBUG ins.State.ExitCode = %d", ins.State.ExitCode)
+	log.Infof("ONLY FOR CURRENT DEBUG info.ExitCode = %d", info.ExitCode)
 	if err != nil {
 		err = errors.Wrap(err, "exec command in container error")
 	}
