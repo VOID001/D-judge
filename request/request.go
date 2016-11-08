@@ -3,6 +3,7 @@ package request
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -20,7 +21,8 @@ const (
 )
 
 func Do(ctx context.Context, method string, URL string, data interface{}, ctype string, respdata interface{}) (err error) {
-	var req *http.Request
+	log.Infof("Do(%v %v %v %v %v %v)", ctx, method, URL, data, ctype, respdata)
+	req := new(http.Request)
 	URL = config.GlobalConfig.EndpointURL + URL
 	log.Debugf("stared request method=%s URL=%s", method, URL)
 	cli := &http.Client{}
@@ -36,6 +38,9 @@ func Do(ctx context.Context, method string, URL string, data interface{}, ctype 
 					err = errors.Wrap(err, "do request error")
 					return
 				}
+			} else {
+				err = errors.New(fmt.Sprintf("do request error: data invaid type %T", data))
+				return
 			}
 		} else if ctype == TypeJSON {
 			enc.Encode(data)
@@ -87,4 +92,59 @@ func Do(ctx context.Context, method string, URL string, data interface{}, ctype 
 
 	log.Debugf("done request method=%s URL=%s", method, URL)
 	return
+}
+
+func JudgeError(ctx context.Context, errMsg error, jid int64) {
+	info := make(url.Values)
+
+	// Encode error to base64 string
+
+	// For backward(domjudge) compability, set judge error as compile error
+	data := base64.StdEncoding.EncodeToString([]byte(errMsg.Error()))
+	info["compile_success"] = []string{"0"}
+	info["output_compile"] = []string{data}
+	info["judgehost"] = []string{config.GlobalConfig.HostName}
+
+	err := Do(ctx, http.MethodPut, fmt.Sprintf("/judgings/%d", jid), info, TypeForm, nil)
+	if err != nil {
+		err = errors.Wrap(err, "put Judging Errors error")
+		log.Error(err)
+	}
+	return
+}
+
+func CompileError(ctx context.Context, compileErr error, jid int64) (err error) {
+	info := make(url.Values)
+
+	// Encode error to base64 string
+
+	// For backward(domjudge) compability, set judge error as compile error
+	data := base64.StdEncoding.EncodeToString([]byte(compileErr.Error()))
+	info["compile_success"] = []string{"0"}
+	info["output_compile"] = []string{data}
+	info["judgehost"] = []string{config.GlobalConfig.HostName}
+
+	err = Do(ctx, http.MethodPut, fmt.Sprintf("/judgings/%d", jid), info, TypeForm, nil)
+	if err != nil {
+		err = errors.Wrap(err, "put Compile Errors error")
+		return
+	}
+	return
+
+}
+
+func CompileOK(ctx context.Context, jid int64) {
+	info := make(url.Values)
+
+	info["compile_success"] = []string{"1"}
+	info["output_compile"] = []string{""}
+	info["judgehost"] = []string{config.GlobalConfig.HostName}
+
+	err := Do(ctx, http.MethodPut, fmt.Sprintf("/judgings/%d", jid), info, TypeForm, nil)
+	if err != nil {
+		err = errors.Wrap(err, "put Compile OK error")
+		return
+	}
+	return
+
 }
