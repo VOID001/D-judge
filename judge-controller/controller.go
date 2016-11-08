@@ -96,7 +96,7 @@ func (d *Daemon) run(ctx context.Context, cpuid int) {
 				w.cleanup(ctx)
 				log.Error(err)
 				request.JudgeError(ctx, err, w.JudgeInfo.JudgingID)
-				return // Future will change to continue
+				continue // Future will change to continue
 			}
 			log.Infof("RunID #%d prepare OK", w.JudgeInfo.SubmitID)
 			ok, err := w.build(ctx)
@@ -104,7 +104,7 @@ func (d *Daemon) run(ctx context.Context, cpuid int) {
 				w.cleanup(ctx)
 				log.Error(err)
 				request.JudgeError(ctx, err, w.JudgeInfo.JudgingID)
-				return
+				continue
 			}
 			// Compile Error, stop the current test
 			if !ok {
@@ -174,12 +174,13 @@ func (d *Daemon) run(ctx context.Context, cpuid int) {
 					request.JudgeError(ctx, err, w.JudgeInfo.JudgingID)
 					break
 				}
+				log.Infof("Judge Testcase %d OK", tinfo.Rank)
 
 			}
 			err = w.cleanup(ctx)
 			if err != nil {
 				log.Error(err)
-				break
+				continue
 			}
 		} else {
 			break
