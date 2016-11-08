@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"math/rand"
 	"runtime"
 	"time"
 
@@ -74,6 +75,7 @@ func init() {
 	}
 	f, _ := os.Create(logfile)
 	log.SetOutput(f)
+	log.SetFormatter(&log.JSONFormatter{})
 	config.GlobalConfig = GlobalConfig
 }
 
@@ -113,7 +115,7 @@ func main() {
 	// PerformRequest Lifcycle
 	daemon := controller.Daemon{}
 	daemon.MaxWorker = runtime.NumCPU()
-	go daemon.Run(context.Background())
+	daemon.Run(context.Background())
 	for {
 		jinfo := config.JudgeInfo{}
 		// Request For Judge
@@ -127,6 +129,7 @@ func main() {
 			workDir := fmt.Sprintf("%s/c%d-s%d-j%d", config.GlobalConfig.JudgeRoot, jinfo.ContestID, jinfo.SubmitID, jinfo.JudgingID)
 			if _, err := os.Stat(workDir); err == nil {
 				oldWorkDir := fmt.Sprintf("%s-old-%d", workDir, time.Now().Unix())
+				log.Infof("Found stale working directory, rename to %s", oldWorkDir)
 				err := os.Rename(workDir, oldWorkDir)
 				if err != nil {
 					err = errors.Wrap(err, "main loop error")
@@ -136,8 +139,7 @@ func main() {
 			os.Mkdir(workDir, DirPerm)
 			daemon.AddTask(context.Background(), jinfo, workDir, config.GlobalConfig.DockerImage)
 		}
-		//time.Sleep(time.Duration(rand.Intn(2500)) * time.Millisecond)
-		time.Sleep(time.Duration(1000) * time.Millisecond)
+		time.Sleep(time.Duration(rand.Intn(2500)) * time.Millisecond)
 	}
 }
 
