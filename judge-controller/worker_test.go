@@ -2,10 +2,15 @@ package controller
 
 import (
 	"context"
-	log "github.com/Sirupsen/logrus"
-	"github.com/VOID001/D-judge/config"
+	"fmt"
 	"path/filepath"
 	"testing"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/VOID001/D-judge/config"
+	"github.com/docker/engine-api/client"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/container"
 )
 
 var GlobalConfig = config.SystemConfig{
@@ -52,4 +57,55 @@ func TestWorkerPrepare(t *testing.T) {
 		t.Fail()
 		return
 	}
+}
+
+func TestWorkerExecCMD(t *testing.T) {
+	w := Worker{}
+	cmd := fmt.Sprintf("compare/run execdir/testcase.in execdir/testcase.out testcase001 < execdir/program.out 2> compare.err >compare.out")
+	cli, err := client.NewClient(config.GlobalConfig.DockerServer, "", nil, nil)
+	if err != nil {
+		t.Logf("Failed error: %+v", err)
+		t.Fail()
+		return
+	}
+
+	cfg := container.Config{}
+	cfg.Image = config.GlobalConfig.DockerImage
+	cfg.User = "root" // Future will change to judge, a low-privileged user
+	cfg.Tty = true
+	cfg.WorkingDir = "/sandbox"
+	cfg.AttachStdin = false
+	cfg.AttachStderr = false
+	cfg.AttachStdout = false
+	cfg.Cmd = []string{"/bin/bash"}
+	hcfg := container.HostConfig{}
+	hcfg.Binds = []string{"/tmp/testdir:/sandbox"}
+	hcfg.Memory = config.GlobalConfig.RootMemory
+	hcfg.PidsLimit = 64 // This is enough for almost all case
+
+	resp, err := cli.ContainerCreate(context.TODO(), &cfg, &hcfg, nil, "")
+	if err != nil {
+		t.Logf("Failed error: %+v", err)
+		t.Fail()
+		return
+	}
+	err = cli.ContainerStart(context.TODO(), resp.ID, types.ContainerStartOptions{})
+	if err != nil {
+		t.Logf("Failed error: %+v", err)
+		t.Fail()
+		return
+	}
+	w.containerID = resp.ID
+	info, err := w.execcmd(context.TODO(), cli, "root", cmd)
+	if err != nil {
+		t.Logf("Failed error: %+v", err)
+		t.Fail()
+		return
+	}
+	if info.ExitCode != 233 {
+		t.Logf("Expected exit code 233, got %d", info.ExitCode)
+		t.Fail()
+		return
+	}
+
 }
