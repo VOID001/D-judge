@@ -2,6 +2,15 @@ package config
 
 var GlobalConfig SystemConfig
 
+// Define Run results
+const (
+	ResTLE = "timelimit"
+	ResWA  = "wrong-answer"
+	ResAC  = "correct"
+	ResCE  = "compiler-error"
+	ResRE  = "run-error"
+)
+
 type SystemConfig struct {
 	HostName         string `toml:"host_name"`
 	EndpointUser     string `toml:"endpoint_user"`
@@ -50,4 +59,15 @@ type SubmissionInfo struct {
 type SubmissionFileInfo struct {
 	FileName string `json:"filename"`
 	Content  string `json:"contetn"`
+}
+
+type RunResult struct {
+	JudgingID    int64
+	TestcaseID   int64
+	RunResult    string
+	RunTime      float64
+	OutputRun    string
+	OutputError  string
+	OutputSystem string
+	OutputDiff   string
 }
