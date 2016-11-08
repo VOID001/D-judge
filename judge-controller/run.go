@@ -21,32 +21,8 @@ func (w *Worker) run(ctx context.Context, rank int64, tid int64) (ok bool, err e
 		err = errors.Wrap(er, fmt.Sprintf("Run error on Run#%d case %d", w.JudgeInfo.SubmitID, rank))
 		return
 	}
-	cmd := fmt.Sprintf("/bin/bash -c unzip -o run/%s -d run", w.JudgeInfo.RunZip)
-	info, er := w.execcmd(ctx, cli, "root", cmd)
-	if er != nil {
-		err = errors.Wrap(er, fmt.Sprintf("Run error on Run#%d case %d", w.JudgeInfo.SubmitID, rank))
-		return
-	}
-	if info.ExitCode != 0 {
-		err = errors.New(fmt.Sprintf("Run error on Run#%d case %d, Command %s exit code is non-zero value %d", w.JudgeInfo.SubmitID, rank, cmd, info.ExitCode))
-		return
-	}
 
-	cmd = fmt.Sprintf("/bin/bash -c run/build 2> run/build.err")
 	insp, er := cli.ContainerInspect(ctx, w.containerID)
-	if er != nil {
-		err = errors.Wrap(err, fmt.Sprintf("Run error on Run#%d case %d", w.JudgeInfo.SubmitID, rank))
-		return
-	}
-	info, err = w.execcmd(ctx, cli, "root", cmd)
-	if err != nil {
-		err = errors.Wrap(er, fmt.Sprintf("Run error on Run#%d case %d", w.JudgeInfo.SubmitID, rank))
-		return
-	}
-	if info.ExitCode != 0 {
-		err = errors.New(fmt.Sprintf("Run error on Run#%d case %d, Command %s exit code is non-zero value %d", w.JudgeInfo.SubmitID, rank, cmd, info.ExitCode))
-		return
-	}
 
 	// Prepare the execdir
 	execdir := filepath.Join(w.WorkDir, "execdir")
@@ -75,8 +51,9 @@ func (w *Worker) run(ctx context.Context, rank int64, tid int64) (ok bool, err e
 
 	// Run testcase
 	pid := insp.State.Pid
-	cmd = "/bin/bash -c run/run execdir/testcase.in execdir/program.out ./program 2> run.err; touch ./done.lck"
-	info, err = w.execcmd(ctx, cli, "root", cmd)
+	//cmd = "/bin/bash -c run/run execdir/testcase.in execdir/program.out ./program 2> run.err; touch ./done.lck"
+	cmd := "run/run execdir/testcase.in execdir/program.out ./program 2> run.err; touch ./done.lck"
+	info, err := w.execcmd(ctx, cli, "root", cmd)
 	if err != nil {
 		err = errors.Wrap(err, fmt.Sprintf("Run error on Run#%d case %d", w.JudgeInfo.SubmitID, rank))
 		return

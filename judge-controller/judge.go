@@ -7,7 +7,9 @@ import (
 	"os"
 	"path/filepath"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/VOID001/D-judge/config"
+	"github.com/VOID001/D-judge/request"
 	"github.com/docker/engine-api/client"
 	"github.com/pkg/errors"
 )
@@ -32,28 +34,12 @@ func (w *Worker) judge(ctx context.Context, rank int64, tid int64) (err error) {
 		err = errors.Wrap(er, fmt.Sprintf("Judge error on Run#%d case %d", w.JudgeInfo.SubmitID, rank))
 		return
 	}
-	cmd := fmt.Sprintf("/bin/bash -c unzip -o compare/%s -d compare", w.JudgeInfo.CompareZip)
-	info, er := w.execcmd(ctx, cli, "root", cmd)
-	if er != nil {
-		err = errors.Wrap(er, fmt.Sprintf("Judge error on Run#%d case %d", w.JudgeInfo.SubmitID, rank))
-		return
-	}
-	if info.ExitCode != 0 {
-		err = errors.New(fmt.Sprintf("Judge error on Run#%d case %d, Command %s exit code is non-zero value %d", w.JudgeInfo.SubmitID, rank, cmd, info.ExitCode))
-	}
 
-	cmd = fmt.Sprintf("/bin/bash -c compare/build 2> compare/build.err", w.JudgeInfo.CompareZip)
-	info, err = w.execcmd(ctx, cli, "root", cmd)
-	if err != nil {
-		err = errors.Wrap(err, fmt.Sprintf("Judge error on Run#%d case %d", w.JudgeInfo.SubmitID, rank))
-		return
-	}
-	if info.ExitCode != 0 {
-		err = errors.New(fmt.Sprintf("Judge error on Run#%d case %d, Command %s exit code is non-zero value %d", w.JudgeInfo.SubmitID, rank, cmd, info.ExitCode))
-	}
-
-	cmd = fmt.Sprintf("/bin/bash compare/run execdir/testcase.in execdir/testcase.out testcase001 < execdir/program.out 2> compare.err >compare.out")
-	info, err = w.execcmd(ctx, cli, "root", cmd)
+	cmd := fmt.Sprintf("compare/run execdir/testcase.in execdir/testcase.out testcase001 < execdir/program.out 2> compare.err >compare.out; touch done.lck")
+	log.Debugf("executing command %s", cmd)
+	info, err := w.execcmd(ctx, cli, "root", cmd)
+	//	time.Sleep(time.Second * 10)
+	code := info.ExitCode
 	if err != nil {
 		err = errors.Wrap(err, fmt.Sprintf("Judge error on Run#%d case %d", w.JudgeInfo.SubmitID, rank))
 		return
@@ -74,7 +60,7 @@ func (w *Worker) judge(ctx context.Context, rank int64, tid int64) (err error) {
 	}
 	res.OutputSystem = fmt.Sprintf("%s", data)
 
-	switch info.ExitCode {
+	switch code {
 	case ExitWA:
 		res.RunResult = config.ResWA
 		// Report Accepted
@@ -82,12 +68,17 @@ func (w *Worker) judge(ctx context.Context, rank int64, tid int64) (err error) {
 		res.RunResult = config.ResAC
 		// Report Wrong Answer
 	default:
-		err = errors.New(fmt.Sprintf("Judge return unexpected exit code %d", info.ExitCode))
+		err = errors.New(fmt.Sprintf("Judge return unexpected exit code %d", code))
 		return
 	}
 
 	// Remove execdir for next time use
 	oldexecdir := fmt.Sprintf("%s%03d", execdir, rank)
+	err = request.PostResult(ctx, res)
+	if err != nil {
+		err = errors.Wrap(err, "Judge error")
+		return
+	}
 	err = os.Rename(execdir, oldexecdir)
 	if err != nil {
 		err = errors.Wrap(err, fmt.Sprintf("Judge error on Run#%d case %d", w.JudgeInfo.SubmitID, rank))

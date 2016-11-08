@@ -46,8 +46,7 @@ func (w *Worker) build(ctx context.Context) (ok bool, err error) {
 		err = errors.Wrap(er, fmt.Sprintf("Build error on Run#%d", w.JudgeInfo.SubmitID))
 		return
 	}
-	log.Infof("MARK")
-	defer cli.ContainerRemove(ctx, w.containerID, types.ContainerRemoveOptions{})
+	//defer cli.ContainerRemove(ctx, w.containerID, types.ContainerRemoveOptions{})
 	w.containerID = resp.ID
 	log.Debugf("RunID #%d container create ID %s", w.JudgeInfo.SubmitID, w.containerID)
 	err = cli.ContainerStart(ctx, w.containerID, types.ContainerStartOptions{})
@@ -55,8 +54,8 @@ func (w *Worker) build(ctx context.Context) (ok bool, err error) {
 		err = errors.Wrap(err, fmt.Sprintf("Build error on Run#%d", w.JudgeInfo.SubmitID))
 		return
 	}
-	log.Infof("MARK")
-	cmd := fmt.Sprintf("bash -c unzip -o build/%s -d build", w.JudgeInfo.BuildZip)
+	//cmd := fmt.Sprintf("bash -c unzip -o build/%s -d build", w.JudgeInfo.BuildZip)
+	cmd := fmt.Sprintf("unzip -o build/%s -d build", w.JudgeInfo.BuildZip)
 	log.Infof("container %s executing %s", w.containerID, cmd)
 	info, err := w.execcmd(ctx, cli, "root", cmd)
 	if err != nil {
@@ -67,7 +66,8 @@ func (w *Worker) build(ctx context.Context) (ok bool, err error) {
 		return
 	}
 
-	cmd = "bash -c build/build 2> build/build.err"
+	//cmd = "bash -c build/build 2> build/build.err"
+	cmd = "cd build; ./build 2> ./build.err"
 	log.Infof("container %s executing %s", w.containerID, cmd)
 	info, err = w.execcmd(ctx, cli, "root", cmd)
 	if err != nil {
@@ -77,6 +77,57 @@ func (w *Worker) build(ctx context.Context) (ok bool, err error) {
 		err = errors.New(fmt.Sprintf("Build error: exec command %+v return non-zero value %d", cmd, info.ExitCode))
 		return
 	}
+
+	// Build the run executable
+	cmd = fmt.Sprintf("unzip -o run/%s -d run", w.JudgeInfo.RunZip)
+	info, er = w.execcmd(ctx, cli, "root", cmd)
+	if er != nil {
+		err = errors.Wrap(err, "Build error")
+		return
+	}
+	if info.ExitCode != 0 {
+		err = errors.New(fmt.Sprintf("Build error: exec command %+v return non-zero value %d", cmd, info.ExitCode))
+		return
+	}
+
+	//cmd = fmt.Sprintf("/bin/bash -c run/build 2> run/build.err")
+	cmd = fmt.Sprintf("cd run; ./build 2> ./build.err")
+	info, err = w.execcmd(ctx, cli, "root", cmd)
+	if err != nil {
+		err = errors.Wrap(er, "Build error")
+		return
+	}
+	if info.ExitCode != 0 {
+		err = errors.New(fmt.Sprintf("Build error: exec command %+v return non-zero value %d", cmd, info.ExitCode))
+		return
+	}
+
+	// Build the compare executable
+	// Build the judge script
+	//cmd := fmt.Sprintf("/bin/bash -c unzip -o compare/%s -d compare", w.JudgeInfo.CompareZip)
+	cmd = fmt.Sprintf("unzip -o compare/%s -d compare", w.JudgeInfo.CompareZip)
+	log.Debugf("executing command %s", cmd)
+	info, er = w.execcmd(ctx, cli, "root", cmd)
+	if er != nil {
+		err = errors.Wrap(er, "Build error")
+		return
+	}
+	if info.ExitCode != 0 {
+		err = errors.New(fmt.Sprintf("Build error: exec command %+v return non-zero value %d", cmd, info.ExitCode))
+	}
+
+	//cmd = fmt.Sprintf("/bin/bash -c cd compare; ./build 2> ./build.err")
+	cmd = fmt.Sprintf("cd compare; ./build 2> ./build.err")
+	log.Debugf("executing command %s", cmd)
+	info, err = w.execcmd(ctx, cli, "root", cmd)
+	if err != nil {
+		err = errors.Wrap(err, "Build error")
+		return
+	}
+	if info.ExitCode != 0 {
+		err = errors.New(fmt.Sprintf("Build error: exec command %+v return non-zero value %d", cmd, info.ExitCode))
+	}
+
 	// Do the real compile
 	insp, err := cli.ContainerInspect(ctx, w.containerID)
 	if err != nil {
@@ -84,7 +135,8 @@ func (w *Worker) build(ctx context.Context) (ok bool, err error) {
 		return
 	}
 	pid := insp.State.Pid
-	cmd = fmt.Sprintf("bash -c build/run ./program DUMMY ./%s 2> ./compile.err > ./compile.out; touch ./done.lck", w.codeFileName)
+	//cmd = fmt.Sprintf("bash -c build/run ./program DUMMY ./%s 2> ./compile.err > ./compile.out; touch ./done.lck", w.codeFileName)
+	cmd = fmt.Sprintf("build/run ./program DUMMY ./%s 2> ./compile.err > ./compile.out; touch ./done.lck", w.codeFileName)
 	log.Debugf("container %s executing %s", w.containerID, cmd)
 	info, err = w.execcmd(ctx, cli, "root", cmd)
 	if err != nil {
