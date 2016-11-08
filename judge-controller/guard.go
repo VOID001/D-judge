@@ -85,6 +85,7 @@ Loop:
 			// Time limit exceed
 			if curtime-starttime > int64(timelim*1000000000) {
 				info.timeexceed = true
+				log.Debugf("Program exceed hard time limit(used %d, hardlim %d), terminated now", curtime-starttime, timelim*1000000000)
 				// Killed the program
 				err = p.Terminate()
 				if err != nil {

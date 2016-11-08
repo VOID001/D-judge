@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/VOID001/D-judge/config"
 	"github.com/docker/engine-api/client"
 	"github.com/pkg/errors"
@@ -75,11 +76,13 @@ func (w *Worker) run(ctx context.Context, tid int64) (err error) {
 		err = errors.Wrap(err, fmt.Sprintf("Run error on Run#%d case %d", w.JudgeInfo.SubmitID, tid))
 		return
 	}
+	log.Debugf("Protecting run %s", cmd)
 	runinfo, er := w.runProtect(ctx, &insp, insp.State.Pid, uint64(w.JudgeInfo.TimeLimit), w.JudgeInfo.OutputLimit, "execdir/program.out")
 	if er != nil {
 		err = errors.Wrap(err, fmt.Sprintf("Run error on Run#%d case %d", w.JudgeInfo.SubmitID, tid))
 		return
 	}
+	log.Debugf("Testcase run done, info %+v", runinfo)
 
 	if runinfo.timeexceed {
 		// Perform Post

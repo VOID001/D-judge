@@ -85,6 +85,9 @@ func (d *Daemon) Run(ctx context.Context) {
 
 func (d *Daemon) run(ctx context.Context, cpuid int) {
 	for {
+		// Only Judge Error Will Processed here, other error will process
+		// in the worker function
+
 		if w, ok := <-d.workerChan; ok {
 			log.Infof("Started Judging RunID #%d, running on CPU %d", w.JudgeInfo.SubmitID, cpuid)
 			w.CPUID = cpuid
@@ -92,15 +95,22 @@ func (d *Daemon) run(ctx context.Context, cpuid int) {
 			if err != nil {
 				w.cleanup(ctx)
 				log.Error(err)
-				return
+				request.JudgeError(ctx, err, w.JudgeInfo.JudgingID)
+				return // Future will change to continue
 			}
-			err = w.build(ctx)
+			log.Infof("RunID #%d prepare OK", w.JudgeInfo.SubmitID)
+			err, ok := w.build(ctx)
 			if err != nil {
 				w.cleanup(ctx)
 				log.Error(err)
+				request.JudgeError(ctx, err, w.JudgeInfo.JudgingID)
 				return
 			}
-			log.Debugf("Build done, start to fetch testcase")
+			// Compile Error, stop the current test
+			if !ok {
+				continue
+			}
+			log.Infof("RunID #%d compile OK", w.JudgeInfo.SubmitID)
 			for {
 				// Request for testcase
 				tinfo := config.TestcaseInfo{}
