@@ -21,7 +21,7 @@ const (
 )
 
 func Do(ctx context.Context, method string, URL string, data interface{}, ctype string, respdata interface{}) (err error) {
-	log.Infof("Do(%v %v %v %v %v %v)", ctx, method, URL, data, ctype, respdata)
+	log.Debugf("Do(%v %v %v %v %v %v)", ctx, method, URL, data, ctype, respdata)
 	req := new(http.Request)
 	URL = config.GlobalConfig.EndpointURL + URL
 	log.Debugf("stared request method=%s URL=%s", method, URL)
@@ -76,19 +76,21 @@ func Do(ctx context.Context, method string, URL string, data interface{}, ctype 
 	log.Debugf("Response Header %+v", resp.Header)
 	log.Debugf("Response Header %s", tmpbuf.String())
 
-	err = dec.Decode(&respdata)
+	if respdata != nil {
+		err = dec.Decode(&respdata)
 
-	if err == io.EOF {
-		err = nil
-		respdata = nil
-		return
-	}
+		if err == io.EOF {
+			err = nil
+			respdata = nil
+			return
+		}
 
-	if err != nil {
-		err = errors.Wrap(err, "json decode error")
-		return
+		if err != nil {
+			err = errors.Wrap(err, "json decode error")
+			return
+		}
+		log.Debugf("Decoded data %+v", respdata)
 	}
-	log.Debugf("Decoded data %+v", respdata)
 
 	log.Debugf("done request method=%s URL=%s", method, URL)
 	return
@@ -133,18 +135,39 @@ func CompileError(ctx context.Context, compileErr error, jid int64) (err error) 
 
 }
 
-func CompileOK(ctx context.Context, jid int64) {
+func CompileOK(ctx context.Context, jid int64) (err error) {
 	info := make(url.Values)
 
 	info["compile_success"] = []string{"1"}
 	info["output_compile"] = []string{""}
 	info["judgehost"] = []string{config.GlobalConfig.HostName}
 
-	err := Do(ctx, http.MethodPut, fmt.Sprintf("/judgings/%d", jid), info, TypeForm, nil)
+	err = Do(ctx, http.MethodPut, fmt.Sprintf("/judgings/%d", jid), info, TypeForm, nil)
 	if err != nil {
 		err = errors.Wrap(err, "put Compile OK error")
 		return
 	}
 	return
 
+}
+
+func PostResult(ctx context.Context, result config.RunResult) (err error) {
+	info := make(url.Values)
+
+	info["judgingid"] = []string{fmt.Sprintf("%d", result.JudgingID)}
+	info["testcaseid"] = []string{fmt.Sprintf("%d", result.TestcaseID)}
+	info["runresult"] = []string{result.RunResult}
+	info["runtime"] = []string{fmt.Sprintf("%lf", result.RunTime)}
+	info["judgehost"] = []string{config.GlobalConfig.HostName}
+	info["output_run"] = []string{base64.StdEncoding.EncodeToString([]byte(result.OutputRun))}
+	info["output_error"] = []string{base64.StdEncoding.EncodeToString([]byte(result.OutputError))}
+	info["output_system"] = []string{base64.StdEncoding.EncodeToString([]byte(result.OutputSystem))}
+	info["output_diff"] = []string{base64.StdEncoding.EncodeToString([]byte(result.OutputDiff))}
+
+	err = Do(ctx, http.MethodPost, "/judging_runs", info, TypeForm, nil)
+	if err != nil {
+		err = errors.Wrap(err, "Post result error")
+		return
+	}
+	return
 }
