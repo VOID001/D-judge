@@ -1,0 +1,52 @@
+From 03cca51b6ca935f08dbc37a9a36de2ad77cf4d30 Mon Sep 17 00:00:00 2001
+From: Jianqiu Zhang <zhangjianqiu13@gmail.com>
+Date: Thu, 10 Nov 2016 00:22:09 +0800
+Subject: [PATCH] Fix compabability issue with NEUOJ Product version
+
+NEUOJ has bug that json_encode will encode a int to string and D-judge cannot decode the json strcture correctly, so D-judge make config adapt with it
+---
+ config/config.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/config/config.go b/config/config.go
+index bf65544..70224f3 100644
+--- a/config/config.go
++++ b/config/config.go
+@@ -26,15 +26,15 @@ type SystemConfig struct {
+ }
+ 
+ type JudgeInfo struct {
+-	SubmitID      int64  `json:"submitid"`
++	SubmitID      int64  `json:"submitid,string"`
+ 	ContestID     int64  `json:"cid"`
+-	TeamID        int64  `json:"teamid"`
+-	JudgingID     int64  `json:"judgingid"`
+-	ProblemID     int64  `json:"probid"`
++	TeamID        int64  `json:"teamid,string"`
++	JudgingID     int64  `json:"judgingid,string"`
++	ProblemID     int64  `json:"probid,string"`
+ 	Language      string `json:"langid"`
+-	TimeLimit     int64  `json:"maxruntime"`
+-	MemLimit      int64  `json:"memlimit"`
+-	OutputLimit   int64  `json:"output_limit"`
++	TimeLimit     int64  `json:"maxruntime,string"`
++	MemLimit      int64  `json:"memlimit,string"`
++	OutputLimit   int64  `json:"output_limit,string"`
+ 	BuildZip      string `json:"compile_script"`
+ 	BuildZipMD5   string `json:"compile_script_md5sum"`
+ 	RunZip        string `json:"run"`
+@@ -45,9 +45,9 @@ type JudgeInfo struct {
+ }
+ 
+ type TestcaseInfo struct {
+-	TestcaseID   int64  `json:"testcaseid"`
++	TestcaseID   int64  `json:"testcaseid,string"`
+ 	Rank         int64  `json:"rank"`
+-	ProblemID    int64  `json:"probid"`
++	ProblemID    int64  `json:"probid,string"`
+ 	MD5SumInput  string `json:"md5sum_input"`
+ 	MD5SumOutput string `json:"md5sum_output"`
+ }
+-- 
+2.10.0
+
