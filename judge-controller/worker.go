@@ -2,6 +2,11 @@ package controller
 
 import (
 	"context"
+	"fmt"
+	"io/ioutil"
+	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -50,6 +55,26 @@ func (w *Worker) cleanup(ctx context.Context) (err error) {
 	if err != nil {
 		err = errors.Wrap(err, "worker cleanup error")
 		return err
+	}
+	return
+}
+
+func (w *Worker) readExitCode(ctx context.Context) (code int, err error) {
+	// Read the file exitcode and return
+
+	path := filepath.Join(w.WorkDir, "exitcode")
+	data, er := ioutil.ReadFile(path)
+	if er != nil {
+		err = errors.Wrap(er, "read exit code from file error")
+		return
+	}
+	str := fmt.Sprintf("%s", data)
+	str = strings.TrimSuffix(str, "\n")
+	str = strings.TrimPrefix(str, "\n")
+	code, err = strconv.Atoi(str)
+	if err != nil {
+		err = errors.Wrap(err, "read exit code from file error")
+		return
 	}
 	return
 }
