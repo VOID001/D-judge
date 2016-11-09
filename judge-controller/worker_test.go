@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -61,7 +60,8 @@ func TestWorkerPrepare(t *testing.T) {
 
 func TestWorkerExecCMD(t *testing.T) {
 	w := Worker{}
-	cmd := fmt.Sprintf("compare/run execdir/testcase.in execdir/testcase.out testcase001 < execdir/program.out 2> compare.err >compare.out")
+	//cmd := fmt.Sprintf("compare/run execdir/testcase.in execdir/testcase.out testcase001 < execdir/program.out 2> compare.err >compare.out")
+	cmd := "sleep 5; exit 233"
 	cli, err := client.NewClient(config.GlobalConfig.DockerServer, "", nil, nil)
 	if err != nil {
 		t.Logf("Failed error: %+v", err)
@@ -76,7 +76,7 @@ func TestWorkerExecCMD(t *testing.T) {
 	cfg.WorkingDir = "/sandbox"
 	cfg.AttachStdin = false
 	cfg.AttachStderr = false
-	cfg.AttachStdout = false
+	cfg.AttachStdout = true
 	cfg.Cmd = []string{"/bin/bash"}
 	hcfg := container.HostConfig{}
 	hcfg.Binds = []string{"/tmp/testdir:/sandbox"}
