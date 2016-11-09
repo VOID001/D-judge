@@ -4,6 +4,7 @@ package controller
 
 import (
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -61,7 +62,6 @@ Loop:
 		select {
 		case ev := <-wt.Events:
 			log.Debugf("%s", ev.String())
-			println(ev.String())
 			if ev.Op == fsnotify.Create && strings.HasSuffix(ev.Name, "done.lck") {
 				curtime = time.Now().UnixNano()
 				break Loop
@@ -111,54 +111,86 @@ Loop:
 		err = errors.Wrap(err, "cannot remove done.lck [ABORT!]")
 		return
 	}
-	println("DONE.LCK SHOULD BE REOMVED")
-
 	return
 }
 
 func (w *Worker) execcmd(ctx context.Context, cli *client.Client, user string, cmd string) (info types.ContainerExecInspect, err error) {
 	ec := types.ExecConfig{}
-	ec.Detach = false
+	ec.Detach = true
 	ec.Tty = false
+	ec.AttachStdout = true // Set this to true will make the command block until finish
 	ec.Cmd = make([]string, 3)
 	ec.Cmd[0] = "/bin/bash"
 	ec.Cmd[1] = "-c"
 	ec.Cmd[2] = cmd
-	//ec.Cmd = strings.Split(cmd, " ")
-	//excmd := strings.Join(ec.Cmd[2:], " ")
-	//ec.Cmd[2] = excmd
+	log.Infof("%+v", ec)
 	ec.User = user
-	//log.Infof("ONLY FOR NOW DEBUG ec %v", ec.Cmd)
 	eresp, er := cli.ContainerExecCreate(ctx, w.containerID, ec)
 	if er != nil {
 		err = errors.Wrap(er, "exec command in container error")
 		return
 	}
 	sc := types.ExecStartCheck{}
+	sc.Tty = ec.Tty
+	sc.Detach = ec.Detach
 	log.Infof("ExecStartCheck %+v", sc)
-	sc.Tty = true
-	sc.Detach = false
-	//log.Infof("exec ID = %s", eresp.ID)
 	err = cli.ContainerExecStart(ctx, eresp.ID, sc)
 	if err != nil {
 		err = errors.Wrap(err, "exec command in container error")
 		return
 	}
-	//insp, err := cli.ContainerExecAttach(ctx, eresp.ID, ec)
-	//if err != nil {
-	//	err = errors.Wrap(err, "exec command in container error")
-	//}
-	//defer insp.Close()
 	log.Debugf("Executing exec ID = %s", eresp.ID)
-	//time.Sleep(1 * time.Second)
 	info, err = cli.ContainerExecInspect(ctx, eresp.ID)
-	ins, er := cli.ContainerInspect(ctx, w.containerID)
-	log.Infof("ONLY FOR CURRENT DEBUG ins.State.ExitCode = %d", ins.State.ExitCode)
+	if err != nil {
+		err = errors.Wrap(err, "exec command in container error")
+		return
+	}
 	log.Infof("ONLY FOR CURRENT DEBUG info.ExitCode = %d", info.ExitCode)
+	return
+}
+
+func (w *Worker) execcmdAttach(ctx context.Context, cli *client.Client, user string, cmd string) (info types.ContainerExecInspect, err error) {
+	ec := types.ExecConfig{}
+	ec.Detach = false
+	ec.Tty = false
+	ec.AttachStdout = true // Set this to true will make the command block until finish
+	ec.Cmd = make([]string, 3)
+	ec.Cmd[0] = "/bin/bash"
+	ec.Cmd[1] = "-c"
+	ec.Cmd[2] = cmd
+	log.Infof("%+v", ec)
+	ec.User = user
+	eresp, er := cli.ContainerExecCreate(ctx, w.containerID, ec)
+	if er != nil {
+		err = errors.Wrap(er, "exec command in container error")
+		return
+	}
+	sc := types.ExecStartCheck{}
+	sc.Tty = ec.Tty
+	sc.Detach = ec.Detach
+	log.Infof("ExecStartCheck %+v", sc)
+	err = cli.ContainerExecStart(ctx, eresp.ID, sc)
+	if err != nil {
+		err = errors.Wrap(err, "exec command in container error")
+		return
+	}
+	insp, err := cli.ContainerExecAttach(ctx, eresp.ID, ec)
 	if err != nil {
 		err = errors.Wrap(err, "exec command in container error")
 	}
-	//buf := bytes.Buffer{}
-	//buf.ReadFrom(insp.Reader)
+	c := insp.Conn
+	defer insp.Close()
+
+	log.Debugf("Executing exec ID = %s", eresp.ID)
+	one := make([]byte, 1)
+	_, err = c.Read(one)
+	if err == io.EOF {
+		log.Infof("Connection Closed")
+	}
+	info, err = cli.ContainerExecInspect(ctx, eresp.ID)
+	if err != nil {
+		err = errors.Wrap(err, "exec command in container error")
+		return
+	}
 	return
 }
