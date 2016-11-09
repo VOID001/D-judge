@@ -37,7 +37,7 @@ func (w *Worker) judge(ctx context.Context, rank int64, tid int64) (err error) {
 
 	cmd := fmt.Sprintf("compare/run execdir/testcase.in execdir/testcase.out testcase001 < execdir/program.out 2> compare.err >compare.out")
 	log.Debugf("executing command %s", cmd)
-	info, err := w.execcmd(ctx, cli, "root", cmd)
+	info, err := w.execcmdAttach(ctx, cli, "root", cmd)
 	//	time.Sleep(time.Second * 10)
 	code := info.ExitCode
 	if err != nil {
