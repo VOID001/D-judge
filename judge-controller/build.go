@@ -18,7 +18,7 @@ import (
 
 func (w *Worker) build(ctx context.Context) (ok bool, err error) {
 	// Start the container and Build the target
-	cli, er := client.NewClient(config.GlobalConfig.DockerServer, "", nil, nil)
+	cli, er := client.NewClient(config.GlobalConfig.DockerServer, config.GlobalConfig.DockerVersion, nil, nil)
 	if er != nil {
 		err = errors.Wrap(er, fmt.Sprintf("Build error on Run#%d", w.JudgeInfo.SubmitID))
 		return

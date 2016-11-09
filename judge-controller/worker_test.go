@@ -22,6 +22,7 @@ var GlobalConfig = config.SystemConfig{
 	CacheRoot:        "/tmp/cache_root",
 	DockerImage:      "void001/neuoj-judge-image:latest",
 	DockerServer:     "unix:///var/run/docker.sock",
+	DockerVersion:    "v1.24",
 }
 
 func init() {
@@ -62,7 +63,7 @@ func TestWorkerExecCMD(t *testing.T) {
 	w := Worker{}
 	//cmd := fmt.Sprintf("compare/run execdir/testcase.in execdir/testcase.out testcase001 < execdir/program.out 2> compare.err >compare.out")
 	cmd := "sleep 5; exit 233"
-	cli, err := client.NewClient(config.GlobalConfig.DockerServer, "", nil, nil)
+	cli, err := client.NewClient(config.GlobalConfig.DockerServer, config.GlobalConfig.DockerVersion, nil, nil)
 	if err != nil {
 		t.Logf("Failed error: %+v", err)
 		t.Fail()

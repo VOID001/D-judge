@@ -16,7 +16,7 @@ import (
 
 func (w *Worker) run(ctx context.Context, rank int64, tid int64) (ok bool, err error) {
 	// Prepare the run script
-	cli, er := client.NewClient(config.GlobalConfig.DockerServer, "", nil, nil)
+	cli, er := client.NewClient(config.GlobalConfig.DockerServer, config.GlobalConfig.DockerVersion, nil, nil)
 	if er != nil {
 		err = errors.Wrap(er, fmt.Sprintf("Run error on Run#%d case %d", w.JudgeInfo.SubmitID, rank))
 		return

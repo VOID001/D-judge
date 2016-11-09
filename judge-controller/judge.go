@@ -29,7 +29,7 @@ func (w *Worker) judge(ctx context.Context, rank int64, tid int64) (err error) {
 		return
 	}
 	// Build the judge script
-	cli, er := client.NewClient(config.GlobalConfig.DockerServer, "", nil, nil)
+	cli, er := client.NewClient(config.GlobalConfig.DockerServer, config.GlobalConfig.DockerVersion, nil, nil)
 	if er != nil {
 		err = errors.Wrap(er, fmt.Sprintf("Judge error on Run#%d case %d", w.JudgeInfo.SubmitID, rank))
 		return

@@ -51,7 +51,7 @@ func init() {
 }
 
 func Ping(ctx context.Context) (err error) {
-	cli, err := client.NewClient(config.GlobalConfig.DockerServer, "v1.24", nil, nil)
+	cli, err := client.NewClient(config.GlobalConfig.DockerServer, config.GlobalConfig.DockerVersion, nil, nil)
 	if err != nil {
 		err = errors.Wrap(err, "create docker client error")
 		return err

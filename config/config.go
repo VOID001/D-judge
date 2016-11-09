@@ -21,6 +21,7 @@ type SystemConfig struct {
 	JudgeRoot        string `toml:"judge_root"`
 	DockerImage      string `toml:"docker_image"`
 	DockerServer     string `toml:"docker_server"`
+	DockerVersion    string `toml:"docker_version"`
 	CacheRoot        string `toml:"cache_root"`
 	RootMemory       int64  `toml:"root_mem"`
 }

@@ -1,17 +1,20 @@
-# D-judge configuration Example
-# Rename the file to config.toml
+# D-judge configuration
 
-host_name = "judge-01" # The name of the judge
+run_mode = "prod"       # Currently not use
+host_name = "D-judge-helloworld"  # Specify the hostname of the judge
 
-docker_image = "void001/neuoj-judge-image:latest" # Docker Image to use for judge
+docker_image = "void001/neuoj-judge-image:latest"  # Image use to run in docker
+docker_server = "unix:///var/run/docker.sock" # path to your docker socket/port, if you do not know how to set it, leave it as default setting
+docker_version = "v1.24" # docker daemon version, use `docker version` and set version to Server API version
 
-cache_root = "cache_root" # Cache Root
-max_cache_size = 4096000  # Maximized Cache size (in KBytes)
+cache_root = "cache_root" # Path need to be abosolute path
+max_cache_size = 4096000 # in Bytes
+root_mem = 40960000000 # in Bytes
 
-judge_root = "judge_root" # Judge Root, testcase save & run here
+judge_root = "judge_root" # Path need to be absolute path
 
-# OJ connection settings
 endpoint_name = "neuoj-test"
-endpoint_url = "http://127.0.0.1:8080/api"
-endpoint_user = "neuoj"
-endpoint_password = "1a2c3@fg"
+endpoint_url = "http://127.0.0.1:8080/api" # Set it to your NEUOJ server API endpoint
+endpoint_user = "neuoj" # set it to your JUDGE_USER set in NEUOJ .env
+endpoint_password = "neuoj" # set it to your JUDGE_PW in NEUOJ .env
+

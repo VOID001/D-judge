@@ -41,7 +41,7 @@ const (
 )
 
 func (w *Worker) cleanup(ctx context.Context) (err error) {
-	cli, er := client.NewClient(config.GlobalConfig.DockerServer, "", nil, nil)
+	cli, er := client.NewClient(config.GlobalConfig.DockerServer, config.GlobalConfig.DockerVersion, nil, nil)
 	if er != nil {
 		err = errors.Wrap(er, "worker cleanup error")
 		return err
