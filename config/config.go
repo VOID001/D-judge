@@ -26,15 +26,15 @@ type SystemConfig struct {
 }
 
 type JudgeInfo struct {
-	SubmitID      int64  `json:"submitid"`
+	SubmitID      int64  `json:"submitid,string"`
 	ContestID     int64  `json:"cid"`
-	TeamID        int64  `json:"teamid"`
-	JudgingID     int64  `json:"judgingid"`
-	ProblemID     int64  `json:"probid"`
+	TeamID        int64  `json:"teamid,string"`
+	JudgingID     int64  `json:"judgingid,string"`
+	ProblemID     int64  `json:"probid,string"`
 	Language      string `json:"langid"`
-	TimeLimit     int64  `json:"maxruntime"`
-	MemLimit      int64  `json:"memlimit"`
-	OutputLimit   int64  `json:"output_limit"`
+	TimeLimit     int64  `json:"maxruntime,string"`
+	MemLimit      int64  `json:"memlimit,string"`
+	OutputLimit   int64  `json:"output_limit,string"`
 	BuildZip      string `json:"compile_script"`
 	BuildZipMD5   string `json:"compile_script_md5sum"`
 	RunZip        string `json:"run"`
@@ -45,9 +45,9 @@ type JudgeInfo struct {
 }
 
 type TestcaseInfo struct {
-	TestcaseID   int64  `json:"testcaseid"`
+	TestcaseID   int64  `json:"testcaseid,string"`
 	Rank         int64  `json:"rank"`
-	ProblemID    int64  `json:"probid"`
+	ProblemID    int64  `json:"probid,string"`
 	MD5SumInput  string `json:"md5sum_input"`
 	MD5SumOutput string `json:"md5sum_output"`
 }
