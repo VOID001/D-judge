@@ -57,7 +57,7 @@ func (w *Worker) build(ctx context.Context) (ok bool, err error) {
 	//cmd := fmt.Sprintf("bash -c unzip -o build/%s -d build", w.JudgeInfo.BuildZip)
 	cmd := fmt.Sprintf("unzip -o build/%s -d build", w.JudgeInfo.BuildZip)
 	log.Infof("container %s executing %s", w.containerID, cmd)
-	info, err := w.execcmd(ctx, cli, "root", cmd)
+	info, err := w.execcmdAttach(ctx, cli, "root", cmd)
 	if err != nil {
 		err = errors.Wrap(err, "Build error")
 	}
@@ -80,7 +80,7 @@ func (w *Worker) build(ctx context.Context) (ok bool, err error) {
 
 	// Build the run executable
 	cmd = fmt.Sprintf("unzip -o run/%s -d run", w.JudgeInfo.RunZip)
-	info, er = w.execcmd(ctx, cli, "root", cmd)
+	info, er = w.execcmdAttach(ctx, cli, "root", cmd)
 	if er != nil {
 		err = errors.Wrap(err, "Build error")
 		return
@@ -92,7 +92,7 @@ func (w *Worker) build(ctx context.Context) (ok bool, err error) {
 
 	//cmd = fmt.Sprintf("/bin/bash -c run/build 2> run/build.err")
 	cmd = fmt.Sprintf("cd run; ./build 2> ./build.err")
-	info, err = w.execcmd(ctx, cli, "root", cmd)
+	info, err = w.execcmdAttach(ctx, cli, "root", cmd)
 	if err != nil {
 		err = errors.Wrap(er, "Build error")
 		return
@@ -107,7 +107,7 @@ func (w *Worker) build(ctx context.Context) (ok bool, err error) {
 	//cmd := fmt.Sprintf("/bin/bash -c unzip -o compare/%s -d compare", w.JudgeInfo.CompareZip)
 	cmd = fmt.Sprintf("unzip -o compare/%s -d compare", w.JudgeInfo.CompareZip)
 	log.Debugf("executing command %s", cmd)
-	info, er = w.execcmd(ctx, cli, "root", cmd)
+	info, er = w.execcmdAttach(ctx, cli, "root", cmd)
 	if er != nil {
 		err = errors.Wrap(er, "Build error")
 		return
@@ -119,7 +119,7 @@ func (w *Worker) build(ctx context.Context) (ok bool, err error) {
 	//cmd = fmt.Sprintf("/bin/bash -c cd compare; ./build 2> ./build.err")
 	cmd = fmt.Sprintf("cd compare; ./build 2> ./build.err")
 	log.Debugf("executing command %s", cmd)
-	info, err = w.execcmd(ctx, cli, "root", cmd)
+	info, err = w.execcmdAttach(ctx, cli, "root", cmd)
 	if err != nil {
 		err = errors.Wrap(err, "Build error")
 		return
@@ -136,9 +136,9 @@ func (w *Worker) build(ctx context.Context) (ok bool, err error) {
 	}
 	pid := insp.State.Pid
 	//cmd = fmt.Sprintf("bash -c build/run ./program DUMMY ./%s 2> ./compile.err > ./compile.out; touch ./done.lck", w.codeFileName)
-	cmd = fmt.Sprintf("build/run ./program DUMMY ./%s 2> ./compile.err > ./compile.out; touch ./done.lck", w.codeFileName)
+	cmd = fmt.Sprintf("build/run ./program DUMMY ./%s 2> ./compile.err > ./compile.out; echo $? > exitcode; touch ./done.lck", w.codeFileName)
 	log.Debugf("container %s executing %s", w.containerID, cmd)
-	info, err = w.execcmd(ctx, cli, "root", cmd)
+	_, err = w.execcmd(ctx, cli, "root", cmd)
 	if err != nil {
 		err = errors.Wrap(err, "build error")
 		return
@@ -154,12 +154,19 @@ func (w *Worker) build(ctx context.Context) (ok bool, err error) {
 		err = errors.New(fmt.Sprintf("Build Error, Quota exceed %+v", runinfo))
 		return
 	}
-	f, er := os.Stat(filepath.Join(w.WorkDir, "compile.err"))
+	_, err = os.Stat(filepath.Join(w.WorkDir, "exitcode"))
+	if err != nil {
+		err = errors.Wrap(err, "build error")
+		return
+	}
+	// Read exit code from file
+	code, er := w.readExitCode(ctx)
 	if er != nil {
 		err = errors.Wrap(er, "build error")
 		return
 	}
-	if f.Size() != 0 {
+
+	if code != 0 {
 		data, er := ioutil.ReadFile(filepath.Join(w.WorkDir, "compile.err"))
 		if er != nil {
 			err = errors.Wrap(er, "build error")
