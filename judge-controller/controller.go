@@ -93,7 +93,6 @@ func (d *Daemon) run(ctx context.Context, cpuid int) {
 			w.CPUID = cpuid
 			err := w.prepare(ctx)
 			if err != nil {
-				w.cleanup(ctx)
 				log.Error(err)
 				request.JudgeError(ctx, err, w.JudgeInfo.JudgingID)
 				continue // Future will change to continue
@@ -108,6 +107,7 @@ func (d *Daemon) run(ctx context.Context, cpuid int) {
 			}
 			// Compile Error, stop the current test
 			if !ok {
+				w.cleanup(ctx)
 				continue
 			}
 			log.Infof("RunID #%d compile OK", w.JudgeInfo.SubmitID)
@@ -117,6 +117,8 @@ func (d *Daemon) run(ctx context.Context, cpuid int) {
 
 				err = request.Do(ctx, http.MethodGet, fmt.Sprintf("/testcases?judgingid=%d", w.JudgeInfo.SubmitID), nil, "", &tinfo)
 				if err != nil {
+					request.JudgeError(ctx, err, w.JudgeInfo.JudgingID)
+					break
 					// Return Judge Error
 				}
 				if tinfo.TestcaseID == 0 {
@@ -136,6 +138,8 @@ func (d *Daemon) run(ctx context.Context, cpuid int) {
 				if err != nil {
 					err = errors.Wrap(err, "worker error: downloading testcase error")
 					log.Error(err)
+					request.JudgeError(ctx, err, w.JudgeInfo.JudgingID)
+					break
 					// Return Judge Error
 				}
 

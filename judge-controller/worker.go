@@ -10,6 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/VOID001/D-judge/config"
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
@@ -41,6 +42,7 @@ const (
 )
 
 func (w *Worker) cleanup(ctx context.Context) (err error) {
+	log.Debugf("doing cleanup for containerID %s", w.containerID)
 	cli, er := client.NewClient(config.GlobalConfig.DockerServer, config.GlobalConfig.DockerVersion, nil, nil)
 	if er != nil {
 		err = errors.Wrap(er, "worker cleanup error")
